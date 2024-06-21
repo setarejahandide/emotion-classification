@@ -1,49 +1,86 @@
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report
 
-# Read the CSV file into a DataFrame
-df = pd.read_csv('isear-train.csv')
+# Read the CSV files into DataFrames
+df_train = pd.read_csv('isear-train.csv')
+df_test = pd.read_csv('isear-val.csv')
 
-# the first column is the emotion label and the second column is the sentence
-emotion_column = df.columns[0]
-sentence_column = df.columns[1]
+# Assuming the first column is the emotion label and the second column is the sentence
+emotion_column_train = df_train.columns[0]
+sentence_column_train = df_train.columns[1]
 
+emotion_column_test = df_test.columns[0]
+sentence_column_test = df_test.columns[1]
 
+# Rename columns for clarity
+df_train = df_train.rename(columns={emotion_column_train: 'emotion', sentence_column_train: 'processed_sentence'})
+df_test = df_test.rename(columns={emotion_column_test: 'emotion', sentence_column_test: 'processed_sentence'})
 
-# If emotion and sentence are already in separate columns, just rename them accordingly
-df = df.rename(columns={emotion_column: 'emotion', sentence_column: 'processed_sentence'})
+# Remove any unnecessary columns (adjust indices as needed)
+df_train = df_train[['emotion', 'processed_sentence']]
+df_test = df_test[['emotion', 'processed_sentence']]
 
-df = df.drop(df.columns[[2,3,4,5,6]], axis=1)
+# Display the DataFrames to check the structure
+print("Training DataFrame:")
+print(df_train.head())
 
-# Display the DataFrame to check the structure
-print("Original DataFrame:")
-print(df.head())
+print("Testing DataFrame:")
+print(df_test.head())
 
-df['processed_sentence'].fillna('', inplace=True)  # Replace NaN values with empty string
+# Handle missing values: replace NaN with an empty string in 'processed_sentence'
+df_train['processed_sentence'].fillna('', inplace=True)
+df_test['processed_sentence'].fillna('', inplace=True)
 
+# Ensure 'processed_sentence' columns are of type str
+df_train['processed_sentence'] = df_train['processed_sentence'].astype(str)
+df_test['processed_sentence'] = df_test['processed_sentence'].astype(str)
 
-# Ensure the processed_sentence column is of type str
-df['processed_sentence'] = df['processed_sentence'].astype(str)
+# Handle missing values in 'emotion' by removing those rows
+df_train = df_train.dropna(subset=['emotion'])
+df_test = df_test.dropna(subset=['emotion'])
 
-# Verify the data type of the column
-print("\nData Types After Conversion:")
-print(df.dtypes)
+# Convert the columns to lists of strings
+train_documents = df_train['processed_sentence'].tolist()
+train_labels = df_train['emotion'].tolist()
 
-# Convert the column to a list of strings
-documents = df['processed_sentence'].tolist()
-labels = df['emotion']
+test_documents = df_test['processed_sentence'].tolist()
+test_labels = df_test['emotion'].tolist()
 
+# Additional check for NaN values in the lists
+print("\nChecking for NaN values in train_documents:", any(pd.isna(doc) for doc in train_documents))
+print("Checking for NaN values in test_documents:", any(pd.isna(doc) for doc in test_documents))
+print("Checking for NaN values in train_labels:", any(pd.isna(label) for label in train_labels))
+print("Checking for NaN values in test_labels:", any(pd.isna(label) for label in test_labels))
 
-# Create a TfidfVectorizer instance without max_features
-tfidf_vectorizer = TfidfVectorizer()  # max_features parameter can be adjusted as needed
+# Remove any remaining NaN values within the documents and labels
+train_documents = [doc if isinstance(doc, str) else "" for doc in train_documents]
+train_labels = [label if isinstance(label, str) else "" for label in train_labels]
 
-# Fit and transform the text data into a TF-IDF feature matrix
-X = tfidf_vectorizer.fit_transform(documents)
-y = labels
+test_documents = [doc if isinstance(doc, str) else "" for doc in test_documents]
+test_labels = [label if isinstance(label, str) else "" for label in test_labels]
+
+# Create a TfidfVectorizer instance
+tfidf_vectorizer = TfidfVectorizer()
+
+# Fit the TF-IDF vectorizer on the training data and transform both train and test sets
+X_train = tfidf_vectorizer.fit_transform(train_documents)
+X_test = tfidf_vectorizer.transform(test_documents)
+y_train = train_labels
+y_test = test_labels
 
 # Display the shape of the TF-IDF feature matrix
-print("\nTF-IDF Feature Matrix Shape:", X.shape)
+print("\nTF-IDF Feature Matrix Shape (Train):", X_train.shape)
+print("TF-IDF Feature Matrix Shape (Test):", X_test.shape)
 
+# Train a logistic regression model
+model = LogisticRegression(max_iter=1000)
+model.fit(X_train, y_train)
+
+# Make predictions on the test set
+y_pred = model.predict(X_test)
+
+# Evaluate the model
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred))
