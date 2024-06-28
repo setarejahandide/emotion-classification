@@ -1,3 +1,4 @@
+
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
@@ -61,34 +62,17 @@ train_labels = [label if isinstance(label, str) else "" for label in train_label
 test_documents = [doc if isinstance(doc, str) else "" for doc in test_documents]
 test_labels = [label if isinstance(label, str) else "" for label in test_labels]
 
-# Create a TfidfVectorizer instance
+# Create a TfidfVectorizer instance with a maximum number of features
 tfidf_vectorizer = TfidfVectorizer()
 
 # Fit the TF-IDF vectorizer on the training data and transform both train and test sets
 X_train = tfidf_vectorizer.fit_transform(train_documents)
 X_test = tfidf_vectorizer.transform(test_documents)
+
 y_train = train_labels
 y_test = test_labels
 
 # Display the shape of the TF-IDF feature matrix
 print("\nTF-IDF Feature Matrix Shape (Train):", X_train.shape)
 print("TF-IDF Feature Matrix Shape (Test):", X_test.shape)
-
-# Train a logistic regression model
-model = LogisticRegression(max_iter=1000)
-model.fit(X_train, y_train)
-
-# Make predictions on the test set
-# y_pred = model.predict(X_test)
-
-# Evaluate the model
-#print("\nClassification Report:")
-#print(classification_report(y_test, y_pred))
-
-
-
-
-
-
-
 

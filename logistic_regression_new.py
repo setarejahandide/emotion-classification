@@ -61,12 +61,13 @@ train_labels = [label if isinstance(label, str) else "" for label in train_label
 test_documents = [doc if isinstance(doc, str) else "" for doc in test_documents]
 test_labels = [label if isinstance(label, str) else "" for label in test_labels]
 
-# Create a TfidfVectorizer instance
-tfidf_vectorizer = TfidfVectorizer()
+# Create a TfidfVectorizer instance with a maximum number of features
+tfidf_vectorizer = TfidfVectorizer(max_features=1000)
 
 # Fit the TF-IDF vectorizer on the training data and transform both train and test sets
 X_train = tfidf_vectorizer.fit_transform(train_documents)
 X_test = tfidf_vectorizer.transform(test_documents)
+
 y_train = train_labels
 y_test = test_labels
 
@@ -79,16 +80,25 @@ model = LogisticRegression(max_iter=1000)
 model.fit(X_train, y_train)
 
 # Make predictions on the test set
-# y_pred = model.predict(X_test)
+y_pred = model.predict(X_test)
 
 # Evaluate the model
-#print("\nClassification Report:")
-#print(classification_report(y_test, y_pred))
+report = classification_report(y_test, y_pred, output_dict=True)
 
+# Get the average f-score for all the classes
+average_fscore = report['macro avg']['f1-score']
 
+# Print the full classification report
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred))
 
+# Print the average f-score
+print("\nAverage F-Score for All Classes:", average_fscore)
 
-
-
-
-
+# Extract and print accuracy and f-score for each class
+print("\nAccuracy and F-Score for Each Class:")
+for emotion in report.keys():
+    if emotion not in ('accuracy', 'macro avg', 'weighted avg'):
+        print(f"Class: {emotion}")
+        print(f"  Accuracy: {report[emotion]['precision']}")
+        print(f"  F-Score: {report[emotion]['f1-score']}")
