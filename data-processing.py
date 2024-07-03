@@ -3,92 +3,61 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report
 
-# Read the CSV files into DataFrames
-df_train = pd.read_csv('isear-train.csv')
-df_test = pd.read_csv('isear-val.csv')
+train_sentences=[]
+train_labels=[]
+test_sentences=[]
+test_labels=[]
+with open("isear-train.csv", "r") as file:
+    lines = file.readlines()
+    for line in lines:
+        parts = line.strip().split(',', 1)
+        # Check if there are at least two parts after splitting
+        if len(parts) != 2:
+            # Skip this line if it doesn't contain a comma
+            continue
 
-# Assuming the first column is the emotion label and the second column is the sentence
-emotion_column_train = df_train.columns[0]
-sentence_column_train = df_train.columns[1]
+        label = parts[0].strip().strip('"').lower()  # Normalize label by removing double quotes and converting to lowercase
+        train_labels.append(label)
+        text = parts[1] 
+        train_sentences.append(text)
 
-emotion_column_test = df_test.columns[0]
-sentence_column_test = df_test.columns[1]
+with open("isear-val.csv", "r") as file:
+    lines = file.readlines()
+    for line in lines:
+        parts = line.strip().split(',', 1)
+        # Check if there are at least two parts after splitting
+        if len(parts) != 2:
+            # Skip this line if it doesn't contain a comma
+            continue
 
-# Rename columns for clarity
-df_train = df_train.rename(columns={emotion_column_train: 'emotion', sentence_column_train: 'processed_sentence'})
-df_test = df_test.rename(columns={emotion_column_test: 'emotion', sentence_column_test: 'processed_sentence'})
+        label = parts[0].strip().strip('"').lower()  # Normalize label by removing double quotes and converting to lowercase
+        test_labels.append(label)
+        text = parts[1] 
+        test_sentences.append(text)
 
-# Remove any unnecessary columns (adjust indices as needed)
-df_train = df_train[['emotion', 'processed_sentence']]
-df_test = df_test[['emotion', 'processed_sentence']]
+#convert lists to dataframes for better visualization 
+df_train=pd.DataFrame({'emotion':train_labels, 'sentences':train_sentences}) 
+df_test=pd.DataFrame({'emotion':test_labels, 'sentences':test_sentences}) 
 
-# Display the DataFrames to check the structure
-print("Training DataFrame:")
-print(df_train.head())
+# Calculate class frequencies for the training set
+class_counts_train = df_train['emotion'].value_counts()
 
-print("Testing DataFrame:")
-print(df_test.head())
+print(class_counts_train.head(20))
 
-# Handle missing values: replace NaN with an empty string in 'processed_sentence'
-df_train['processed_sentence'].fillna('', inplace=True)
-df_test['processed_sentence'].fillna('', inplace=True)
+# Set a threshold for minimum frequency
+threshold = 5
 
-# Ensure 'processed_sentence' columns are of type str
-df_train['processed_sentence'] = df_train['processed_sentence'].astype(str)
-df_test['processed_sentence'] = df_test['processed_sentence'].astype(str)
+# Filter out classes with frequencies less than or equal to the threshold
+filtered_class_counts_train = class_counts_train[class_counts_train > threshold]
 
-# Handle missing values in 'emotion' by removing those rows
-df_train = df_train.dropna(subset=['emotion'])
-df_test = df_test.dropna(subset=['emotion'])
+# Display the filtered class frequencies
+print("\nFiltered Class Frequencies (Training Set):")
+print(filtered_class_counts_train)
 
-# Convert the columns to lists of strings
-train_documents = df_train['processed_sentence'].tolist()
-train_labels = df_train['emotion'].tolist()
+# Get the number of unique classes
+num_unique_classes = class_counts_train.shape
+print(f"\nNumber of unique classes: {num_unique_classes}")
 
-test_documents = df_test['processed_sentence'].tolist()
-test_labels = df_test['emotion'].tolist()
-
-# Additional check for NaN values in the lists
-print("\nChecking for NaN values in train_documents:", any(pd.isna(doc) for doc in train_documents))
-print("Checking for NaN values in test_documents:", any(pd.isna(doc) for doc in test_documents))
-print("Checking for NaN values in train_labels:", any(pd.isna(label) for label in train_labels))
-print("Checking for NaN values in test_labels:", any(pd.isna(label) for label in test_labels))
-
-# Remove any remaining NaN values within the documents and labels
-train_documents = [doc if isinstance(doc, str) else "" for doc in train_documents]
-train_labels = [label if isinstance(label, str) else "" for label in train_labels]
-
-test_documents = [doc if isinstance(doc, str) else "" for doc in test_documents]
-test_labels = [label if isinstance(label, str) else "" for label in test_labels]
-
-# Create a TfidfVectorizer instance
-tfidf_vectorizer = TfidfVectorizer()
-
-# Fit the TF-IDF vectorizer on the training data and transform both train and test sets
-X_train = tfidf_vectorizer.fit_transform(train_documents)
-X_test = tfidf_vectorizer.transform(test_documents)
-y_train = train_labels
-y_test = test_labels
-
-# Display the shape of the TF-IDF feature matrix
-print("\nTF-IDF Feature Matrix Shape (Train):", X_train.shape)
-print("TF-IDF Feature Matrix Shape (Test):", X_test.shape)
-
-# Train a logistic regression model
-model = LogisticRegression(max_iter=1000)
-model.fit(X_train, y_train)
-
-# Make predictions on the test set
-# y_pred = model.predict(X_test)
-
-# Evaluate the model
-#print("\nClassification Report:")
-#print(classification_report(y_test, y_pred))
-
-
-
-
-
-
-
-
+# Get the total number of rows in the original class counts
+total_rows_class_counts_train = class_counts_train.sum()
+print(f"\nTotal number of rows in class_counts_train: {total_rows_class_counts_train}")
