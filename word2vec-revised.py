@@ -2,6 +2,7 @@ import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report
+import numpy as np
 
 
 train_sentences=[]
@@ -47,46 +48,73 @@ with open("isear-val.csv", "r") as file:
         text = parts[1] 
         test_sentences.append(text)
 
-#convert lists to dataframes for better visualization 
-df_train=pd.DataFrame({'emotion':train_labels, 'sentences':train_sentences}) 
-print(df_train)
 
-# Create a TfidfVectorizer instance with a maximum number of features
-tfidf_vectorizer = TfidfVectorizer()
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+import string
 
-#convert lists to dataframes for better visualization 
-df_train=pd.DataFrame({'emotion':train_labels, 'sentences':train_sentences}) 
-df_test=pd.DataFrame({'emotion':test_labels, 'sentences':test_sentences}) 
+# Tokenization and preprocessing function
+def preprocess_text(text):
+    # Tokenize
+    tokens = word_tokenize(text)
+    #Lowercase
+    tokens = [word.lower() for word in tokens]
+    # Remove punctuation
+    #tokens = [word for word in tokens if word.isalnum()]
+    
+    return tokens
+    
 
-# Calculate class frequencies for the training set
-class_counts_train = df_train['emotion'].value_counts()
+# Apply preprocessing to sentences
+train_sentences = [preprocess_text(sentence) for sentence in train_sentences]
+test_sentences = [preprocess_text(sentence) for sentence in test_sentences]
 
-print(class_counts_train.head(20))
 
-# Set a threshold for minimum frequency
-threshold = 5
+    
 
-# Filter out classes with frequencies less than or equal to the threshold
-filtered_class_counts_train = class_counts_train[class_counts_train > threshold]
 
-# Display the filtered class frequencies
-print("\nFiltered Class Frequencies (Training Set):")
-print(filtered_class_counts_train)
 
-# Get the number of unique classes
-num_unique_classes = class_counts_train.shape
-print(f"\nNumber of unique classes: {num_unique_classes}")
 
-# Fit the TF-IDF vectorizer on the training data and transform both train and test sets
-X_train = tfidf_vectorizer.fit_transform(train_sentences)
-X_test = tfidf_vectorizer.transform(test_sentences)
+
+# Train a Word2Vec model on the training data
+from gensim.models import Word2Vec
+word2vec_model = Word2Vec(sentences=train_sentences, vector_size=100, window=5, min_count=1, workers=4)
+
+# Get the vocabulary size
+vocab_size = len(word2vec_model.wv)
+
+print("Vocabulary Size:", vocab_size)
+
+# Print some sample words
+sample_words = list(word2vec_model.wv.index_to_key)[:10]  
+print("Sample Vocabulary Words:", sample_words)
+
+# Get the dimensions of the word vectors
+vector_size = word2vec_model.wv.vector_size
+print("Word Vector Dimensions:", vector_size)
+
+# Example: Accessing a word vector and its shape
+word_vector = word2vec_model.wv['friend']
+print("Word Vector for 'cat':", word_vector)
+print("Shape of Word Vector for 'friend':", word_vector.shape)
+
+# Function to convert a sentence to a vector by averaging its word vectors
+def sentence_to_vector(sentence, model):
+    words = [word for word in sentence if word in model.wv]
+    if not words:
+        return np.zeros(model.vector_size)
+    return np.mean(model.wv[words], axis=0)
+
+# Convert train and test sentences to vectors
+X_train = np.array([sentence_to_vector(sentence, word2vec_model) for sentence in train_sentences])
+X_test = np.array([sentence_to_vector(sentence, word2vec_model) for sentence in test_sentences])
 
 y_train = train_labels
 y_test = test_labels
 
-# Display the shape of the TF-IDF feature matrix
-print("\nTF-IDF Feature Matrix Shape (Train):", X_train.shape)
-print("TF-IDF Feature Matrix Shape (Test):", X_test.shape)
+# Display the shape of the Word2Vec feature matrix
+print("\nWord2Vec Feature Matrix Shape (Train):", X_train.shape)
+print("Word2Vec Feature Matrix Shape (Test):", X_test.shape)
 
 
 # Train a logistic regression model
@@ -119,5 +147,17 @@ for emotion in report.keys():
         print(f"Class: {emotion}")
         print(f"  Accuracy: {report[emotion]['precision']}")
         print(f"  F-Score: {report[emotion]['f1-score']}")
+
+
+from scipy.spatial.distance import cosine
+
+def similarity(word1, word2, model):
+    vec1 = model.wv[word1]
+    vec2 = model.wv[word2]
+    return 1 - cosine(vec1, vec2)  # Cosine similarity
+
+similarity_score = similarity('brother', 'sister', word2vec_model)
+print(f"Similarity between 'king' and 'queen': {similarity_score}")
+
 
         

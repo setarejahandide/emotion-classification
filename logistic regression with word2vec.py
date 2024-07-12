@@ -2,6 +2,7 @@ import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report
+import numpy as np
 
 
 train_sentences=[]
@@ -47,46 +48,37 @@ with open("isear-val.csv", "r") as file:
         text = parts[1] 
         test_sentences.append(text)
 
-#convert lists to dataframes for better visualization 
-df_train=pd.DataFrame({'emotion':train_labels, 'sentences':train_sentences}) 
-print(df_train)
 
-# Create a TfidfVectorizer instance with a maximum number of features
-tfidf_vectorizer = TfidfVectorizer()
 
-#convert lists to dataframes for better visualization 
-df_train=pd.DataFrame({'emotion':train_labels, 'sentences':train_sentences}) 
-df_test=pd.DataFrame({'emotion':test_labels, 'sentences':test_sentences}) 
 
-# Calculate class frequencies for the training set
-class_counts_train = df_train['emotion'].value_counts()
 
-print(class_counts_train.head(20))
+# Train a Word2Vec model on the training data
+from gensim.models import Word2Vec
+word2vec_model = Word2Vec(sentences=train_sentences, vector_size=100, window=5, min_count=1, workers=4)
 
-# Set a threshold for minimum frequency
-threshold = 5
+# Get the vocabulary size
+vocab_size = len(word2vec_model.wv)
 
-# Filter out classes with frequencies less than or equal to the threshold
-filtered_class_counts_train = class_counts_train[class_counts_train > threshold]
+print("Vocabulary Size:", vocab_size)
 
-# Display the filtered class frequencies
-print("\nFiltered Class Frequencies (Training Set):")
-print(filtered_class_counts_train)
 
-# Get the number of unique classes
-num_unique_classes = class_counts_train.shape
-print(f"\nNumber of unique classes: {num_unique_classes}")
+# Function to convert a sentence to a vector by averaging its word vectors
+def sentence_to_vector(sentence, model):
+    words = [word for word in sentence if word in model.wv]
+    if not words:
+        return np.zeros(model.vector_size)
+    return np.mean(model.wv[words], axis=0)
 
-# Fit the TF-IDF vectorizer on the training data and transform both train and test sets
-X_train = tfidf_vectorizer.fit_transform(train_sentences)
-X_test = tfidf_vectorizer.transform(test_sentences)
+# Convert train and test sentences to vectors
+X_train = np.array([sentence_to_vector(sentence, word2vec_model) for sentence in train_sentences])
+X_test = np.array([sentence_to_vector(sentence, word2vec_model) for sentence in test_sentences])
 
 y_train = train_labels
 y_test = test_labels
 
-# Display the shape of the TF-IDF feature matrix
-print("\nTF-IDF Feature Matrix Shape (Train):", X_train.shape)
-print("TF-IDF Feature Matrix Shape (Test):", X_test.shape)
+# Display the shape of the Word2Vec feature matrix
+print("\nWord2Vec Feature Matrix Shape (Train):", X_train.shape)
+print("Word2Vec Feature Matrix Shape (Test):", X_test.shape)
 
 
 # Train a logistic regression model

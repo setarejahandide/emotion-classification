@@ -41,6 +41,14 @@ df_test['processed_sentence'] = df_test['processed_sentence'].astype(str)
 df_train = df_train.dropna(subset=['emotion'])
 df_test = df_test.dropna(subset=['emotion'])
 
+
+#calculating the frequency of each class for the training set
+class_counts_train = df_train['emotion'].value_counts()
+print("Class Frequencies (Training Set):")
+print(class_counts_train)
+
+
+
 # Convert the columns to lists of strings
 train_documents = df_train['processed_sentence'].tolist()
 train_labels = df_train['emotion'].tolist()
