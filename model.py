@@ -2,6 +2,17 @@ import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report
+from scipy.sparse import csr_matrix, hstack
+import numpy as np
+
+# Function to extract punctuation counts
+def count_punctuation(sentences, punctuation):
+    return [sentence.count(punctuation) for sentence in sentences]
+
+# Function to extract bigrams
+def extract_bigrams(sentences):
+    vectorizer = TfidfVectorizer(ngram_range=(2, 2))
+    return vectorizer.fit_transform(sentences), vectorizer
 
 
 train_sentences=[]
@@ -52,36 +63,29 @@ def predict(test_file):
     # print(df_train)
     
     # Create a TfidfVectorizer instance with a maximum number of features
-    tfidf_vectorizer = TfidfVectorizer()
+    tfidf_vectorizer = TfidfVectorizer(ngram_range=(1, 1))
     
     #convert lists to dataframes for better visualization 
-    df_train=pd.DataFrame({'emotion':train_labels, 'sentences':train_sentences}) 
-    df_test=pd.DataFrame({'emotion':test_labels, 'sentences':test_sentences}) 
+    #df_train=pd.DataFrame({'emotion':train_labels, 'sentences':train_sentences}) 
+    #df_test=pd.DataFrame({'emotion':test_labels, 'sentences':test_sentences}) 
     
     # Calculate class frequencies for the training set
-    class_counts_train = df_train['emotion'].value_counts()
-    class_counts_train.columns=['emotion', 'values']
-    print(class_counts_train.head(20))
+    #class_counts_train = df_train['emotion'].value_counts()
     
-    # Convert the counts to percentages
-    class_percentages = (class_counts_train / class_counts_train.sum()) * 100
-
-    # Display the percentages
-    print(class_percentages)
-   
+    # print(class_counts_train.head(20))
     
     # Set a threshold for minimum frequency
-    threshold = 5
+    #threshold = 5
     
     # Filter out classes with frequencies less than or equal to the threshold
-    filtered_class_counts_train = class_counts_train[class_counts_train > threshold]
+    #filtered_class_counts_train = class_counts_train[class_counts_train > threshold]
     
     # Display the filtered class frequencies
     #print("\nFiltered Class Frequencies (Training Set):")
     #print(filtered_class_counts_train)
     
     # Get the number of unique classes
-    num_unique_classes = class_counts_train.shape
+    #num_unique_classes = class_counts_train.shape
     #print(f"\nNumber of unique classes: {num_unique_classes}")
     
     # Fit the TF-IDF vectorizer on the training data and transform both train and test sets
@@ -123,12 +127,37 @@ def predict(test_file):
         #print(f"  Accuracy: {report[emotion]['precision']}")
         #print(f"  F-Score: {report[emotion]['f1-score']}")
 
-#user part
-print('this program takes a file from you and predicts the emotion associated with every sentence in the file')
-input_file = input('please insert the file')
-predict(input_file)
+def predict_sentence(sentence):
+    
+    # Create a TfidfVectorizer instance with a maximum number of features
+    tfidf_vectorizer = TfidfVectorizer()
+    
+    
+    # Fit the TF-IDF vectorizer on the training data and transform both train and test sets
+    X_train = tfidf_vectorizer.fit_transform(train_sentences)
+    X_test = tfidf_vectorizer.transform(sentence)
+    
+    y_train = train_labels
+    
+    
+    # Train a logistic regression model
+    model = LogisticRegression(max_iter=1000)
+    model.fit(X_train, y_train)
+    
+    # Make predictions on the test set
+    y_pred = model.predict(X_test)
+    print(y_pred)
+    
+    
 
-answer=('do you want to see the emotion predicted for all the sentences?')
-#if answer=='yes':
+#user part
+#print('this program takes a file from you and predicts the emotion associated with every sentence in the file')
+#input_file = input('please insert the file')
+#predict(input_file)
+
+answer= input('please write a sentence ')
+answer=[answer]
+predict_sentence(answer)
+
 
     
