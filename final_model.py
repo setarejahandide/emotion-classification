@@ -17,8 +17,7 @@ def extract_bigrams(sentences):
 
 train_sentences=[]
 train_labels=[]
-test_sentences=[]
-test_labels=[]
+
 
 #extracting the sentences and labels for the train data
 with open("isear-train.csv", "r") as file:
@@ -41,6 +40,7 @@ with open("isear-train.csv", "r") as file:
 
 def predict(input_data): 
     test_sentences=[]
+    test_labels=[]
     if isinstance(input_data, str):
         if input_data.endswith('.csv'):
             with open(input_data, "r") as file:

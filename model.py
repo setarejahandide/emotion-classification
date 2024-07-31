@@ -5,6 +5,39 @@ from sklearn.metrics import classification_report
 from scipy.sparse import csr_matrix, hstack
 import numpy as np
 
+
+# Define emotion keywords
+#emotion_keywords = {
+    #'anger': ['outrage', 'furious'],
+    #'disgust': ['disgusted', 'revolted', 'repulsed'],
+    #'fear': ['afraid', 'scared', 'terrified'],
+    #'guilt': ['guilty', 'remorseful', 'ashamed'],
+    #'joy': ['happy', 'joyful', 'ecstatic'],
+    #'sadness': ['sad', 'grief', 'melancholy'],
+    #'shame': ['shameful', 'embarrassed', 'humiliated']
+#}
+# emotion_keywords = {
+#     'anger': ['angry', 'outrage', 'furious', 'irritated', 'annoyed', 'enraged', 'mad','infuriated', 'fuming', 'indignant', 'incensed'],
+#     'disgust': ['disgusted', 'revolted', 'repulsed', 'disgust'],
+#     'fear': ['fear', 'afraid', 'scared', 'terrified', 'threatened', 'threaten', 'frightened', 'alone'],
+#     'guilt': ['guilty', 'remorseful', 'blameworthy', 'regretful', 'ashamed', 'responsible', 'conscience-stricken', 'culpable', 'self-reproachful', 'penitent'],
+#     'joy': ['happy', 'joyful', 'ecstatic', 'love'],
+#     'sadness': ['sad', 'grief', 'melancholy'],
+#     'shame': ['shame', 'shameful', 'embarrassed', 'humiliated', 'ashamed', 'awful', 'awkward', 'mistake']
+# }
+
+
+# Custom preprocessor function to boost keywords
+#def custom_preprocessor(doc):
+ #   boosted_words = []
+  #  for emotion, keywords in emotion_keywords.items():
+   #     for word in keywords:
+    #        if word in doc:
+     #           boosted_words.append(word)
+    #return doc + ' ' + ' '.join(boosted_words)
+
+
+
 # Function to extract punctuation counts
 def count_punctuation(sentences, punctuation):
     return [sentence.count(punctuation) for sentence in sentences]
