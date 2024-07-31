@@ -2,98 +2,96 @@ import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report
+from scipy.sparse import csr_matrix, hstack
 
-# Read the CSV files into DataFrames
-df_train = pd.read_csv('isear-train.csv')
-df_test = pd.read_csv('isear-val.csv')
+train_sentences = []
+train_labels = []
+test_sentences = []
+test_labels = []
 
-# Assuming the first column is the emotion label and the second column is the sentence
-emotion_column_train = df_train.columns[0]
-sentence_column_train = df_train.columns[1]
+with open("isear-train.csv", "r") as file:
+    lines = file.readlines()
+    for line in lines:
+        parts = line.strip().split(',', 1)
+        if len(parts) != 2:
+            continue
+        label = parts[0].strip().strip('"').lower()
+        train_labels.append(label)
+        text = parts[1]
+        train_sentences.append(text)
 
-emotion_column_test = df_test.columns[0]
-sentence_column_test = df_test.columns[1]
+with open("isear-val.csv", "r") as file:
+    lines = file.readlines()
+    for line in lines:
+        parts = line.strip().split(',', 1)
+        if len(parts) != 2:
+            continue
+        label = parts[0].strip().strip('"').lower()
+        test_labels.append(label)
+        text = parts[1]
+        test_sentences.append(text)
 
-# Rename columns for clarity
-df_train = df_train.rename(columns={emotion_column_train: 'emotion', sentence_column_train: 'processed_sentence'})
-df_test = df_test.rename(columns={emotion_column_test: 'emotion', sentence_column_test: 'processed_sentence'})
-
-# Remove any unnecessary columns (adjust indices as needed)
-df_train = df_train[['emotion', 'processed_sentence']]
-df_test = df_test[['emotion', 'processed_sentence']]
-
-# Display the DataFrames to check the structure
-print("Training DataFrame:")
+df_train = pd.DataFrame({'emotion': train_labels, 'sentences': train_sentences})
 print(df_train.head())
 
-print("Testing DataFrame:")
-print(df_test.head())
-
-# Handle missing values: replace NaN with an empty string in 'processed_sentence'
-df_train['processed_sentence'].fillna('', inplace=True)
-df_test['processed_sentence'].fillna('', inplace=True)
-
-# Ensure 'processed_sentence' columns are of type str
-df_train['processed_sentence'] = df_train['processed_sentence'].astype(str)
-df_test['processed_sentence'] = df_test['processed_sentence'].astype(str)
-
-# Handle missing values in 'emotion' by removing those rows
-df_train = df_train.dropna(subset=['emotion'])
-df_test = df_test.dropna(subset=['emotion'])
-
-# Convert the columns to lists of strings
-train_documents = df_train['processed_sentence'].tolist()
-train_labels = df_train['emotion'].tolist()
-
-test_documents = df_test['processed_sentence'].tolist()
-test_labels = df_test['emotion'].tolist()
-
-# Additional check for NaN values in the lists
-print("\nChecking for NaN values in train_documents:", any(pd.isna(doc) for doc in train_documents))
-print("Checking for NaN values in test_documents:", any(pd.isna(doc) for doc in test_documents))
-print("Checking for NaN values in train_labels:", any(pd.isna(label) for label in train_labels))
-print("Checking for NaN values in test_labels:", any(pd.isna(label) for label in test_labels))
-
-# Remove any remaining NaN values within the documents and labels
-train_documents = [doc if isinstance(doc, str) else "" for doc in train_documents]
-train_labels = [label if isinstance(label, str) else "" for label in train_labels]
-
-test_documents = [doc if isinstance(doc, str) else "" for doc in test_documents]
-test_labels = [label if isinstance(label, str) else "" for label in test_labels]
-
-# Create a TfidfVectorizer instance
 tfidf_vectorizer = TfidfVectorizer()
 
-# Fit the TF-IDF vectorizer on the training data and transform both train and test sets
-X_train = tfidf_vectorizer.fit_transform(train_documents)
-X_test = tfidf_vectorizer.transform(test_documents)
+X_train_tfidf = tfidf_vectorizer.fit_transform(train_sentences)
+X_test_tfidf = tfidf_vectorizer.transform(test_sentences)
+
 y_train = train_labels
 y_test = test_labels
 
-# Display the shape of the TF-IDF feature matrix
-print("\nTF-IDF Feature Matrix Shape (Train):", X_train.shape)
-print("TF-IDF Feature Matrix Shape (Test):", X_test.shape)
+def count_punctuation(sentences, punctuation):
+    return [sentence.count(punctuation) for sentence in sentences]
 
-# Train a logistic regression model
-model = LogisticRegression(max_iter=1000)
-model.fit(X_train, y_train)
+train_exclamation = count_punctuation(train_sentences, '!')
+train_question = count_punctuation(train_sentences, '?')
+train_period = count_punctuation(train_sentences, '.')
+test_exclamation = count_punctuation(test_sentences, '!')
+test_question = count_punctuation(test_sentences, '?')
+test_period = count_punctuation(test_sentences, '.')
 
-# Make predictions on the test set
-y_pred = model.predict(X_test)
+X_train_punct = csr_matrix([train_exclamation, train_question, train_period]).transpose()
+X_test_punct = csr_matrix([test_exclamation, test_question, test_period]).transpose()
 
-# Evaluate the model
+X_train_emotion = hstack([X_train_tfidf, X_train_punct]).tocsr()
+X_test_emotion = hstack([X_test_tfidf, X_test_punct]).tocsr()
+
+emotion_labels = ['joy', 'sadness', 'anger', 'shame']
+emotion_train_indices = [i for i, label in enumerate(train_labels) if label in emotion_labels]
+emotion_test_indices = [i for i, label in enumerate(test_labels) if label in emotion_labels]
+
+X_train_emotion_subset = X_train_emotion[emotion_train_indices]
+y_train_emotion_subset = [train_labels[i] for i in emotion_train_indices]
+
+general_model = LogisticRegression(max_iter=1000)
+general_model.fit(X_train_tfidf, y_train)
+
+specialized_model = LogisticRegression(max_iter=1000)
+specialized_model.fit(X_train_emotion_subset, y_train_emotion_subset)
+
+general_pred = general_model.predict(X_test_tfidf)
+
+X_test_emotion_subset = X_test_emotion[emotion_test_indices]
+emotion_pred = specialized_model.predict(X_test_emotion_subset)
+
+final_pred = general_pred.tolist()
+for i, idx in enumerate(emotion_test_indices):
+    final_pred[idx] = emotion_pred[i]
+
+report = classification_report(y_test, final_pred, output_dict=True)
+
+average_fscore = report['macro avg']['f1-score']
+
 print("\nClassification Report:")
-print(classification_report(y_test, y_pred))
+print(classification_report(y_test, final_pred))
 
-# Evaluate the model
-print("\nAccuracy:")
-accuracy = accuracy_score(y_test, y_pred)
-print(accuracy)
+print("\nAverage F-Score for All Classes:", average_fscore)
 
-print("\nConfusion Matrix:")
-conf_matrix = confusion_matrix(y_test, y_pred)
-print(conf_matrix)
-
-print("\nClassification Report:")
-class_report = classification_report(y_test, y_pred)
-print(class_report)
+print("\nAccuracy and F-Score for Each Class:")
+for emotion in report.keys():
+    if emotion not in ('accuracy', 'macro avg', 'weighted avg'):
+        print(f"Class: {emotion}")
+        print(f"  Accuracy: {report[emotion]['precision']}")
+        print(f"  F-Score: {report[emotion]['f1-score']}")
