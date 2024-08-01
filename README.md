@@ -15,5 +15,4 @@ if you want to check out the baseline, run NaiveBayes.py
 
 
 
-github link:
-https://github.com/setarejahandide/emotion-classification 
+
